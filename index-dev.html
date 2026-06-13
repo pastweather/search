@@ -145,12 +145,12 @@
     .table-scroll { overflow-x:auto; border:1px solid var(--border); border-radius:8px; max-height:62vh; }
     table { width:100%; border-collapse:collapse; font-family:var(--mono); font-size:0.77rem; }
     thead th { background:var(--surface); color:var(--subtle); text-transform:uppercase;
-      letter-spacing:0.03em; font-size:0.64rem; font-weight:500; padding:0.6rem 0.7rem;
+      letter-spacing:0.03em; font-size:0.64rem; font-weight:500; padding:0.6rem 0.6rem;
       text-align:left; border-bottom:1px solid var(--border); white-space:nowrap;
       position:sticky; top:0; z-index:2; }
     tbody tr.hour-row { border-bottom:1px solid var(--border); transition:background 0.08s; }
     tbody tr.hour-row:hover { background:rgba(88,166,255,0.04); }
-    tbody td { padding:0.4rem 0.7rem; color:var(--text); white-space:nowrap; }
+    tbody td { padding:0.4rem 0.6rem; color:var(--text); white-space:nowrap; }
     td.time-col { color:var(--subtle); }
     td.temp-col { font-weight:500; }
     td.temp-hot { color:var(--warm); }
@@ -386,6 +386,7 @@ function mdShort(iso){ const p=parts(iso); return `${p.m}/${p.d}`; }
 function hmShort(iso){ return parts(iso).hm; }
 function fullHour(iso){ const p=parts(iso); const dt=new Date(p.y,p.m-1,p.d); return dt.toLocaleDateString('en-US',{month:'short',day:'numeric'})+', '+p.hm; }
 function fullDay(iso){ const p=parts(iso); const dt=new Date(p.y,p.m-1,p.d); return dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}); }
+function compactDay(iso){ const p=parts(iso); const dt=new Date(p.y,p.m-1,p.d); return dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}); }
 function niceDateLong(dateStr){ const [y,m,d]=dateStr.split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}); }
 function monthDayLabel(dateStr){ const [y,m,d]=dateStr.split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('en-US',{month:'long',day:'numeric'}); }
 function niceStep(range, target){
@@ -650,36 +651,36 @@ function renderDaily(d,c){
 
   document.getElementById('results-meta').innerHTML=`<strong>${dd.time.length} days</strong> · ${c.lat.toFixed(3)}, ${c.lon.toFixed(3)} · ${c.start} → ${c.end} · ${d.timezone}`;
   document.getElementById('results-head').innerHTML=
-    `<tr><th>Date</th><th>High (${L.temp})</th><th>Low (${L.temp})</th><th>Mean (${L.temp})</th>`+
-    `<th>Feels max</th><th>Feels min</th><th>Precip (${L.precip})</th><th>Precip hrs</th>`+
-    `<th>Max wind (${L.wind})</th><th>Dom. dir</th><th>Sunrise</th><th>Sunset</th><th>Conditions</th></tr>`;
+    `<tr><th>Date</th><th>High (${L.temp})</th><th>Low (${L.temp})</th>`+
+    `<th>Feels H/L (${L.temp})</th><th>Precip (${L.precip})</th><th>Rain hrs</th>`+
+    `<th>Wind max (${L.wind})</th><th>Dir</th><th>Sun ↑ / ↓</th><th>Conditions</th></tr>`;
   const tbody=document.getElementById('results-body'); tbody.innerHTML='';
   dd.time.forEach((t,i)=>{
-    const hi=dd.temperature_2m_max?.[i], lo=dd.temperature_2m_min?.[i], mean=dd.temperature_2m_mean?.[i],
+    const hi=dd.temperature_2m_max?.[i], lo=dd.temperature_2m_min?.[i],
       fmax=dd.apparent_temperature_max?.[i], fmin=dd.apparent_temperature_min?.[i],
       psum=dd.precipitation_sum?.[i], phrs=dd.precipitation_hours?.[i], wmax=dd.windspeed_10m_max?.[i],
       wdir=dd.winddirection_10m_dominant?.[i], wmo=dd.weathercode?.[i],
       sr=dd.sunrise?.[i], ss=dd.sunset?.[i];
     const tr=document.createElement('tr'); tr.className='hour-row';
-    tr.innerHTML=`<td class="time-col">${fullDay(t)}</td>`+
+    tr.innerHTML=`<td class="time-col">${compactDay(t)}</td>`+
       `<td class="temp-col ${tempClass(hi)}">${fmt(hi)}°</td>`+
       `<td class="temp-col ${tempClass(lo)}">${fmt(lo)}°</td>`+
-      `<td>${fmt(mean)}°</td>`+
-      `<td class="temp-col">${fmt(fmax)}°</td>`+
-      `<td class="temp-col">${fmt(fmin)}°</td>`+
+      `<td class="temp-col">${fmt(fmax)}° / ${fmt(fmin)}°</td>`+
       `<td class="rain-col">${psum!=null&&psum>0?fmt(psum,1):'<span class="dim">—</span>'}</td>`+
       `<td>${phrs!=null?fmt(phrs,0):'—'}</td>`+
       `<td class="wind-col">${fmt(wmax)}</td>`+
       `<td style="color:var(--subtle)">${wdir!=null?windDir(wdir):'—'}</td>`+
-      `<td>${sr?hmShort(sr):'—'}</td>`+
-      `<td>${ss?hmShort(ss):'—'}</td>`+
+      `<td style="color:var(--subtle)">${sr?hmShort(sr):'—'} / ${ss?hmShort(ss):'—'}</td>`+
       `<td class="wmo-desc">${WMO[wmo] ?? (wmo ?? '—')}</td>`;
     tbody.appendChild(tr);
   });
   document.getElementById('legend-body').innerHTML=
-    `<p><strong>Feels max / min</strong> — daily highs and lows of apparent temperature (wind + humidity + sun adjusted).</p>`+
-    `<p><strong>Precip</strong> — total liquid-equivalent precipitation; <strong>precip hrs</strong> counts hours with measurable precipitation.</p>`+
-    `<p><strong>Max wind</strong> — daily maximum 10 m wind speed; <strong>dom. dir</strong> is the day's dominant wind direction.</p>`;
+    `<p><strong>High / Low</strong> — the day's maximum and minimum air temperature, measured at 2 m above ground.</p>`+
+    `<p><strong>Feels (H/L)</strong> — the daily high and low of apparent temperature: Open-Meteo's estimate of how the air actually feels once wind, humidity, and solar radiation are folded in. It behaves like wind chill in the cold and like a humidity index in the heat, so a damp, sunny afternoon can read well above the air temperature and a windy winter morning well below it.</p>`+
+    `<p><strong>Precip</strong> — total liquid-equivalent precipitation for the day (rain plus any melted snow or ice). <strong>Rain hrs</strong> is the number of hours with measurable precipitation, so the same total spread over fewer hours means heavier, more concentrated rain.</p>`+
+    `<p><strong>Wind max / Dir</strong> — the day's peak 10 m wind speed and its dominant direction over the day (the compass point the wind blew <em>from</em>).</p>`+
+    `<p><strong>Sun ↑ / ↓</strong> — sunrise and sunset in the location's local time.</p>`+
+    `<p><strong>Conditions</strong> — the day's representative weather (WMO code), summarizing the dominant sky and precipitation state. Per-hour heat index, wet-bulb, and WBGT are available in the Hourly view. (Daily mean temperature and the separate feels max/min are still included in the CSV export.)</p>`;
   syncStickyOffset();
 }
 
@@ -778,20 +779,24 @@ async function loadRecords(){
   if(!idx.length){ body.innerHTML=`<div class="records-note">No matching days found.</div>`; return; }
 
   const yearOf=i=>dq.time[i].slice(0,4);
-  let hot={v:-Infinity,y:null}, cold={v:Infinity,y:null}, wet={v:-Infinity,y:null}, windy={v:-Infinity,y:null};
+  // four temperature records: hottest & coldest of the daily highs, and of the daily lows
+  let hiMax={v:-Infinity,y:null}, hiMin={v:Infinity,y:null}, loMax={v:-Infinity,y:null}, loMin={v:Infinity,y:null};
+  let wet={v:-Infinity,y:null}, windy={v:-Infinity,y:null};
   let sumHi=0,nHi=0,sumLo=0,nLo=0;
   idx.forEach(i=>{
     const hi=dq.temperature_2m_max?.[i], lo=dq.temperature_2m_min?.[i], pr=dq.precipitation_sum?.[i], wd=dq.windspeed_10m_max?.[i];
-    if(hi!=null){ if(hi>hot.v){hot={v:hi,y:yearOf(i)};} sumHi+=hi; nHi++; }
-    if(lo!=null){ if(lo<cold.v){cold={v:lo,y:yearOf(i)};} sumLo+=lo; nLo++; }
-    if(pr!=null){ if(pr>wet.v){wet={v:pr,y:yearOf(i)};} }
-    if(wd!=null){ if(wd>windy.v){windy={v:wd,y:yearOf(i)};} }
+    if(hi!=null){ if(hi>hiMax.v) hiMax={v:hi,y:yearOf(i)}; if(hi<hiMin.v) hiMin={v:hi,y:yearOf(i)}; sumHi+=hi; nHi++; }
+    if(lo!=null){ if(lo>loMax.v) loMax={v:lo,y:yearOf(i)}; if(lo<loMin.v) loMin={v:lo,y:yearOf(i)}; sumLo+=lo; nLo++; }
+    if(pr!=null && pr>wet.v) wet={v:pr,y:yearOf(i)};
+    if(wd!=null && wd>windy.v) windy={v:wd,y:yearOf(i)};
   });
   const L=UNIT_LABELS[units];
   const years=idx.map(yearOf); const span=`${years[0]}–${years[years.length-1]}`;
   let html=`<div class="records-note" style="margin-bottom:.7rem">${monthDayLabel(dateStr)} · ${span} · ${nHi} yrs</div>`;
-  if(hot.y) html+=statRow('Hottest', `${fmt(hot.v)}${L.temp} (${hot.y})`, 'hot');
-  if(cold.y) html+=statRow('Coldest', `${fmt(cold.v)}${L.temp} (${cold.y})`, 'cold');
+  if(hiMax.y) html+=statRow('Hottest high', `${fmt(hiMax.v)}${L.temp} (${hiMax.y})`, 'hot');
+  if(hiMin.y) html+=statRow('Coldest high', `${fmt(hiMin.v)}${L.temp} (${hiMin.y})`, 'cold');
+  if(loMax.y) html+=statRow('Hottest low', `${fmt(loMax.v)}${L.temp} (${loMax.y})`, 'hot');
+  if(loMin.y) html+=statRow('Coldest low', `${fmt(loMin.v)}${L.temp} (${loMin.y})`, 'cold');
   if(nHi) html+=statRow('Avg high', `${fmt(sumHi/nHi)}${L.temp}`);
   if(nLo) html+=statRow('Avg low', `${fmt(sumLo/nLo)}${L.temp}`);
   if(wet.y && wet.v>0) html+=statRow('Wettest', `${fmt(wet.v,1)} ${L.precip} (${wet.y})`, 'rain');
