@@ -2,7 +2,7 @@
 
 A single-page tool for looking up **historical hourly weather** for any location — including yesterday and earlier today, the cases most weather apps make oddly difficult.
 
-🔗 **Live:** https://zebraavatar.github.io/weather-archive/
+🔗 **Live:** https://pastweather.github.io/search/
 
 ## What it does
 
