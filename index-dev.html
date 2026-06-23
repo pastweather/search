@@ -22,10 +22,10 @@
       padding:1.75rem 1rem 3.5rem;
     }
 
-    .shell { width:100%; max-width:min(86rem, 96vw); }
+    .shell { width:100%; max-width:min(108rem, 96vw); }
 
     header {
-      width:100%; max-width:min(86rem,96vw); margin-bottom:1.5rem;
+      width:100%; max-width:min(108rem,96vw); margin-bottom:1.5rem;
       border-bottom:1px solid var(--border); padding-bottom:1rem;
       display:flex; justify-content:space-between; align-items:baseline; gap:1rem; flex-wrap:wrap;
     }
@@ -67,6 +67,7 @@
     }
     input:focus { border-color:var(--accent); }
     input::placeholder { color:var(--muted); }
+    input[type="date"]:invalid { border-color:var(--warm); }
 
     button { font-family:var(--sans); font-size:0.85rem; font-weight:500; border:none;
       border-radius:6px; cursor:pointer; padding:0.55rem 1rem; transition:opacity 0.15s, background 0.15s;
@@ -82,7 +83,7 @@
     .geo-results li { padding:0.55rem 0.8rem; cursor:pointer; font-family:var(--mono);
       font-size:0.82rem; border-bottom:1px solid var(--border); transition:background 0.1s; }
     .geo-results li:last-child { border-bottom:none; }
-    .geo-results li:hover { background:rgba(88,166,255,0.08); }
+    .geo-results li:hover, .geo-results li.active { background:rgba(88,166,255,0.08); }
     .geo-results li .geo-sub { color:var(--subtle); font-size:0.74rem; }
 
     .loc-label { font-family:var(--mono); font-size:0.82rem; color:var(--accent); margin-top:0.8rem; min-height:1.1rem; }
@@ -105,13 +106,18 @@
     .status { font-family:var(--mono); font-size:0.76rem; color:var(--subtle); margin-top:0.9rem; min-height:1rem; }
     .status.error { color:var(--warm); }
 
-    /* Results layout */
+    /* Results layout: data drives width. Single column by default (info cards flow
+       into a row below); the sidebar only sits beside the data on very wide screens. */
     .results-layout { display:grid; grid-template-columns:1fr; gap:1.1rem; }
-    @media (min-width:67.5em) {
-      .results-layout { grid-template-columns:minmax(0,1fr) 20rem; align-items:start; }
-    }
     .main-col { display:flex; flex-direction:column; min-width:0; }
-    .side-col { display:flex; flex-direction:column; }
+    .side-col { display:grid; grid-template-columns:repeat(auto-fit, minmax(15rem, 1fr)); gap:1.1rem; align-content:start; }
+    .side-col .card { margin-bottom:0; }
+    @media (min-width:108em) {
+      .results-layout { grid-template-columns:minmax(0,1fr) 21rem; align-items:start; }
+      .side-col { grid-template-columns:1fr; }
+    }
+
+    .chart-controls { display:flex; align-items:center; gap:0.9rem; flex-wrap:wrap; }
 
     /* Chart */
     .chart-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-wrap:wrap; gap:0.5rem; }
@@ -136,6 +142,9 @@
     .table-actions { display:flex; align-items:center; gap:0.85rem; }
     .chk { display:inline-flex; align-items:center; gap:0.4rem; font-family:var(--mono); font-size:0.74rem; color:var(--subtle); margin:0; text-transform:none; letter-spacing:0; cursor:pointer; }
     .chk input { width:auto; }
+    /* humidity checkbox is the green line's key: green fill + green label when ticked */
+    #humidity-toggle { accent-color:#56d364; }
+    .chk:has(#humidity-toggle:checked) { color:#56d364; }
     .btn-csv { background:var(--muted); color:var(--text); font-size:0.76rem; padding:0.45rem 0.85rem; }
     .btn-csv:hover { background:#3a404a; }
 
@@ -143,7 +152,10 @@
     .results-meta strong { color:var(--accent); font-weight:500; }
 
     .table-scroll { overflow-x:auto; border:1px solid var(--border); border-radius:8px; max-height:62vh; }
-    table { width:100%; border-collapse:collapse; font-family:var(--mono); font-size:0.77rem; }
+    table { width:max-content; border-collapse:collapse; font-family:var(--mono); font-size:0.77rem; }
+    /* the table card hugs the data — only as wide as the columns need, capped at the screen,
+       so it scrolls only when the data itself is wider than the viewport (the daily case) */
+    .table-card { width:fit-content; max-width:100%; align-self:flex-start; }
     thead th { background:var(--surface); color:var(--subtle); text-transform:uppercase;
       letter-spacing:0.03em; font-size:0.64rem; font-weight:500; padding:0.6rem 0.6rem;
       text-align:left; border-bottom:1px solid var(--border); white-space:nowrap;
@@ -166,7 +178,7 @@
     .legend { margin-top:0.9rem; font-family:var(--sans); }
     .legend summary { cursor:pointer; font-family:var(--mono); font-size:0.74rem; color:var(--subtle); }
     .legend summary:hover { color:var(--text); }
-    .legend-body { margin-top:0.7rem; font-size:0.82rem; color:var(--subtle); line-height:1.5; }
+    .legend-body { margin-top:0.7rem; font-size:0.82rem; color:var(--subtle); line-height:1.5; max-width:46rem; }
     .legend-body p { margin-bottom:0.55rem; }
     .legend-body strong { color:var(--text); font-weight:500; }
 
@@ -192,7 +204,7 @@
 <body>
 
 <header>
-  <h1>Weather <span>//</span> Archive <span class="ver">v0.2.0-rc.1</span></h1>
+  <h1>Weather <span>//</span> Archive <span class="ver">v0.3.0-rc.1</span></h1>
   <div class="unit-toggle" id="unit-toggle">
     <button data-units="metric" class="active">°C · km/h</button>
     <button data-units="imperial">°F · mph</button>
@@ -259,7 +271,10 @@
       <div class="card chart-card" id="chart-card" style="display:none;">
         <div class="chart-head">
           <div class="chart-title" id="chart-title">Temperature</div>
-          <div class="chart-legend" id="chart-legend"></div>
+          <div class="chart-controls">
+            <label class="chk" id="humidity-chk"><input type="checkbox" id="humidity-toggle" /> Humidity</label>
+            <div class="chart-legend" id="chart-legend"></div>
+          </div>
         </div>
         <div class="chart-wrap" id="chart-wrap">
           <canvas id="chart"></canvas>
@@ -306,10 +321,40 @@
 </div>
 
 <footer>
-  Data: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> · No API key · Archive back to 1940 · v0.2.0-rc.1
+  Data: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> · No API key · Archive back to 1940 · v0.3.0-rc.1
 </footer>
 
 <script>
+// ============================================================
+// Weather Archive — changelog
+//   v0.2.0-rc.1  records, single/range modes, interactive chart, CSV, heat metrics
+//                (this tag also ended up covering the relative-unit chart rework
+//                 and the four-way daily records + detailed column legends)
+//   v0.2.0-rc.2  chart plots temperature only, with optional humidity on a second
+//                (right) axis; avg high/low added to the range summary; full daily
+//                columns restored and the layout widened to use available screen width
+//   v0.2.0-rc.3  humidity axis fixed permanently to 0–100% (no longer auto-scaled)
+//   v0.2.0-rc.4  displayed dates follow the unit toggle: ISO 8601 (YYYY-MM-DD) in
+//                metric/°C, US (MM/DD/YYYY) in imperial/°F (native date input is
+//                locale-controlled by the browser and unchanged)
+//   v0.2.0-rc.5  humidity checkbox turns green when ticked (doubles as the green
+//                line's key); removed the separate humidity legend item so ticking
+//                no longer reflows and shifts the checkbox
+//   v0.2.0-rc.6  future dates are rejected with a clear message instead of being
+//                silently clamped to today; out-of-range date inputs flagged orange
+//   v0.2.0-rc.7  data table sizes to its content instead of stretching full-width:
+//                the table card hugs the columns (capped at screen width, scrolling
+//                only when the data is genuinely wider than the viewport)
+//   v0.2.0-rc.8  location search is now live as you type: 300ms debounce, 2-char
+//                minimum, stale-response guard, arrow/Enter/Escape keyboard nav,
+//                click-outside to dismiss; Enter still searches/picks immediately
+//   v0.2.0       RELEASE — promoted from rc.8 (the sum of all the rc work above)
+//   v0.3.0-rc.1  everything is anchored to the selected location's local time zone:
+//                the date pickers, "today" limit, future-date check, and records
+//                end-date now use the location's today, not the user's (the data was
+//                already location-local via timezone=auto); the displayed zone is now
+//                stated explicitly in the results header
+// ============================================================
 // ===== WMO codes =====
 const WMO = {0:'Clear sky',1:'Mainly clear',2:'Partly cloudy',3:'Overcast',45:'Fog',48:'Icy fog',
   51:'Light drizzle',53:'Drizzle',55:'Heavy drizzle',56:'Freezing drizzle',57:'Heavy freezing drizzle',
@@ -333,6 +378,7 @@ let units = 'metric';
 let currentMode = 'single';   // 'single' | 'range'
 let currentView = 'hourly';   // for range: 'hourly' | 'daily'
 let heatMetrics = false;
+let showHumidity = false;
 let lastWeatherData = null;
 let lastContext = null;       // {lat,lon,start,end,effView}
 let recordsLoaded = false;
@@ -380,14 +426,37 @@ function windDir(deg){ const d=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','S
 function tempClass(t){ if(t==null) return ''; const c=toC(t); if(c>=28) return 'temp-hot'; if(c<=5) return 'temp-cold'; return ''; }
 function fmt(v, d=1){ return v==null ? '—' : Number(v).toFixed(d); }
 function visConvert(m){ if(m==null) return '—'; return units==='imperial' ? (m/1609.34).toFixed(1) : (m/1000).toFixed(1); }
-function todayStr(){ return new Date().toISOString().slice(0,10); }
+// the selected location's IANA time zone — set on search/geolocate/fetch; null until a place is chosen
+let locTimeZone=null;
+function todayStr(){ return new Date().toISOString().slice(0,10); }          // UTC — fallback only
+function todayInTz(tz){
+  try{ return new Intl.DateTimeFormat('en-CA',{ timeZone:tz||undefined, year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date()); }
+  catch(e){ return new Date().toISOString().slice(0,10); }
+}
+// "today" at the selected location if we know its zone, otherwise the user's own local today
+function effToday(){ return todayInTz(locTimeZone); }
+function tzLabel(d){ return d && d.timezone ? `${d.timezone}${d.timezone_abbreviation?' ('+d.timezone_abbreviation+')':''}` : ''; }
+// re-anchor the date pickers to a location's local today: cap the max, pull any now-future value back
+function applyLocationTime(tz){
+  if(tz) locTimeZone=tz;
+  const t=effToday();
+  ['single-date','date-start','date-end'].forEach(id=>{
+    const el=document.getElementById(id); if(!el) return;
+    el.max=t;
+    if(el.value && el.value>t) el.value=t;
+  });
+}
 function parts(iso){ const [date,time=''] = iso.split('T'); const [y,m,d]=date.split('-').map(Number); return {y,m,d,hm:time.slice(0,5)}; }
-function mdShort(iso){ const p=parts(iso); return `${p.m}/${p.d}`; }
+function pad2(n){ return String(n).padStart(2,'0'); }
+function wday(iso,long){ const p=parts(iso); return new Date(p.y,p.m-1,p.d).toLocaleDateString('en-US',{weekday: long?'long':'short'}); }
+// numeric date: ISO 8601 (YYYY-MM-DD) in metric / °C, US (MM/DD/YYYY) in imperial / °F
+function numDate(iso){ const p=parts(iso); return units==='metric' ? `${p.y}-${pad2(p.m)}-${pad2(p.d)}` : `${pad2(p.m)}/${pad2(p.d)}/${p.y}`; }
+function mdShort(iso){ const p=parts(iso); return units==='metric' ? `${pad2(p.m)}-${pad2(p.d)}` : `${p.m}/${p.d}`; }
 function hmShort(iso){ return parts(iso).hm; }
-function fullHour(iso){ const p=parts(iso); const dt=new Date(p.y,p.m-1,p.d); return dt.toLocaleDateString('en-US',{month:'short',day:'numeric'})+', '+p.hm; }
-function fullDay(iso){ const p=parts(iso); const dt=new Date(p.y,p.m-1,p.d); return dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}); }
-function compactDay(iso){ const p=parts(iso); const dt=new Date(p.y,p.m-1,p.d); return dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}); }
-function niceDateLong(dateStr){ const [y,m,d]=dateStr.split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}); }
+function fullHour(iso){ return `${numDate(iso)} ${parts(iso).hm}`; }
+function fullDay(iso){ return `${wday(iso)} · ${numDate(iso)}`; }
+function compactDay(iso){ return `${wday(iso)} · ${numDate(iso)}`; }
+function niceDateLong(dateStr){ return `${wday(dateStr,true)} · ${numDate(dateStr)}`; }
 function monthDayLabel(dateStr){ const [y,m,d]=dateStr.split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('en-US',{month:'long',day:'numeric'}); }
 function niceStep(range, target){
   if(range<=0) return 1;
@@ -396,16 +465,16 @@ function niceStep(range, target){
   return s*mag;
 }
 
-// ===== Init dates =====
+// ===== Init dates (user-local until a location is chosen) =====
 (function(){
   const today=new Date();
-  const f=d=>d.toISOString().slice(0,10);
+  const f=d=>new Intl.DateTimeFormat('en-CA',{year:'numeric',month:'2-digit',day:'2-digit'}).format(d);
   const yest=new Date(today); yest.setDate(today.getDate()-1);
   const weekAgo=new Date(today); weekAgo.setDate(today.getDate()-6);
   document.getElementById('single-date').value=f(yest);
   document.getElementById('date-start').value=f(weekAgo);
   document.getElementById('date-end').value=f(today);
-  ['single-date','date-start','date-end'].forEach(id=>document.getElementById(id).max=f(today));
+  applyLocationTime();   // max = the user's local today (no location selected yet)
 })();
 
 // ===== Toggles =====
@@ -433,44 +502,94 @@ document.getElementById('advanced-toggle').addEventListener('click', ()=>{
   document.getElementById('advanced-toggle').textContent = open ? 'Hide manual coordinates' : 'Enter coordinates manually';
 });
 document.getElementById('heat-toggle').addEventListener('change', e=>{ heatMetrics=e.target.checked; renderResults(); });
+document.getElementById('humidity-toggle').addEventListener('change', e=>{ showHumidity=e.target.checked; renderResults(); });
 
 // ===== Geocoding =====
 const placeInput=document.getElementById('place-input');
 const geoResults=document.getElementById('geo-results');
-async function geocode(name){
+// live autocomplete state
+let geoTimer=null, geoSeq=0, geoAbort=null, geoItems=[], geoActive=-1;
+
+async function geocode(name, signal){
   const url=`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=6&language=en&format=json`;
-  const res=await fetch(url); if(!res.ok) throw new Error('Geocoding request failed');
+  const res=await fetch(url,{signal}); if(!res.ok) throw new Error('Geocoding request failed');
   const data=await res.json(); return data.results||[];
 }
-function showGeoResults(results){
-  geoResults.innerHTML='';
-  if(!results.length){ geoResults.classList.remove('visible'); setStatus('No places found by that name. Try a different spelling.',true); return; }
-  results.forEach(r=>{
+function setActive(i){
+  geoActive=i;
+  [...geoResults.children].forEach((li,idx)=>li.classList.toggle('active', idx===i));
+}
+function renderGeo(results){
+  geoItems=results||[]; geoActive=-1; geoResults.innerHTML='';
+  if(!geoItems.length){ geoResults.classList.remove('visible'); return; }
+  geoItems.forEach((r,i)=>{
     const li=document.createElement('li');
     const sub=[r.admin1,r.country].filter(Boolean).join(', ');
     li.innerHTML=`${r.name} <span class="geo-sub">${sub}</span>`;
     li.addEventListener('click',()=>selectPlace(r));
+    li.addEventListener('mousemove',()=>setActive(i));
     geoResults.appendChild(li);
   });
   geoResults.classList.add('visible');
 }
+// one search path for both the debounced live query and an explicit Enter
+async function performSearch(name, live){
+  const seq=++geoSeq;
+  if(geoAbort) geoAbort.abort();
+  geoAbort=new AbortController();
+  try{
+    const results=await geocode(name, geoAbort.signal);
+    if(seq!==geoSeq) return;                            // a newer keystroke superseded this — drop stale results
+    renderGeo(results);
+    if(results.length) setStatus('');                  // clear any stale "searching…"/"no places" message
+    else if(!live) setStatus('No places found by that name. Try a different spelling.', true);
+  }catch(e){
+    if(e.name==='AbortError' || seq!==geoSeq) return;   // cancelled or superseded — stay quiet
+    setStatus('Could not reach the geocoding service. Check your connection.', true);
+  }
+}
+function liveSearch(){
+  clearTimeout(geoTimer);
+  const name=placeInput.value.trim();
+  if(name.length<2){ geoResults.classList.remove('visible'); geoItems=[]; geoActive=-1; return; }
+  geoTimer=setTimeout(()=>performSearch(name, true), 300);   // fire only after a ~300ms typing pause
+}
+function runSearch(){
+  clearTimeout(geoTimer);
+  const name=placeInput.value.trim(); if(!name) return;
+  setStatus('Searching…');
+  performSearch(name, false);                                // immediate, skips the debounce
+}
 function selectPlace(r){
+  clearTimeout(geoTimer); if(geoAbort) geoAbort.abort(); geoSeq++; geoItems=[]; geoActive=-1;
   document.getElementById('lat-input').value=r.latitude.toFixed(4);
   document.getElementById('lon-input').value=r.longitude.toFixed(4);
   const sub=[r.admin1,r.country].filter(Boolean).join(', ');
   document.getElementById('loc-label').textContent=`📍 ${r.name}${sub?' · '+sub:''}`;
   geoResults.classList.remove('visible'); placeInput.value=r.name;
   recordsLoaded=false; resetRecordsCard();
+  applyLocationTime(r.timezone);   // anchor "today"/limits to the place's local zone before fetching
   fetchWeather();
 }
-async function runSearch(){
-  const name=placeInput.value.trim(); if(!name) return;
-  setStatus('Searching…');
-  try{ const results=await geocode(name); showGeoResults(results); if(results.length) setStatus('Pick a result above.'); }
-  catch(e){ setStatus('Could not reach the geocoding service. Check your connection.',true); }
-}
-placeInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); runSearch(); }});
-placeInput.addEventListener('input', ()=>{ if(!placeInput.value.trim()) geoResults.classList.remove('visible'); });
+placeInput.addEventListener('input', liveSearch);
+placeInput.addEventListener('keydown', e=>{
+  const open=geoResults.classList.contains('visible') && geoItems.length>0;
+  if(e.key==='ArrowDown' && open){ e.preventDefault(); setActive((geoActive+1)%geoItems.length); }
+  else if(e.key==='ArrowUp' && open){ e.preventDefault(); setActive(geoActive<=0 ? geoItems.length-1 : geoActive-1); }
+  else if(e.key==='Enter'){
+    e.preventDefault();
+    if(open && geoActive>=0) selectPlace(geoItems[geoActive]);
+    else if(open) selectPlace(geoItems[0]);            // results showing, nothing highlighted → take the top hit
+    else runSearch();                                  // nothing shown yet → immediate search
+  }
+  else if(e.key==='Escape'){ geoResults.classList.remove('visible'); geoActive=-1; }
+});
+// click outside closes the dropdown (mousedown beats blur, and a result's own click still fires)
+document.addEventListener('mousedown', e=>{
+  if(geoResults.classList.contains('visible') && !geoResults.contains(e.target) && e.target!==placeInput){
+    geoResults.classList.remove('visible'); geoActive=-1;
+  }
+});
 
 // ===== Geolocation =====
 document.getElementById('btn-locate').addEventListener('click', ()=>{
@@ -483,7 +602,9 @@ document.getElementById('btn-locate').addEventListener('click', ()=>{
       document.getElementById('lon-input').value=lo.toFixed(4);
       document.getElementById('loc-label').textContent=`📍 Your location · ${la.toFixed(3)}, ${lo.toFixed(3)}`;
       geoResults.classList.remove('visible'); btn.disabled=false;
-      recordsLoaded=false; resetRecordsCard(); fetchWeather(); },
+      recordsLoaded=false; resetRecordsCard();
+      applyLocationTime(Intl.DateTimeFormat().resolvedOptions().timeZone);   // you're at the location, so your zone is its zone
+      fetchWeather(); },
     err=>{ setStatus(`Location error: ${err.message}`,true); btn.disabled=false; },
     { timeout:10000, enableHighAccuracy:false });
 });
@@ -511,9 +632,15 @@ async function fetchWeather(){
   if(!start || !end){ setStatus('Pick your date(s) first.',true); return; }
   if(start>end){ setStatus('The "From" date must be on or before the "To" date.',true); return; }
 
-  const today=todayStr();
-  if(end>today) end=today;
-  if(start>today) start=today;
+  const today=effToday();
+  if(start>today || end>today){
+    const which = currentMode==='single' ? 'That date is'
+      : (start>today && end>today) ? 'Those dates are'
+      : end>today ? 'The "To" date is'
+      : 'The "From" date is';
+    setStatus(`${which} in the future for that location — its calendar only reaches today (${numDate(today)}). Pick a date on or before then.`, true);
+    return;
+  }
   const dayDiff=(new Date(end)-new Date(start))/86400000;
   if(dayDiff>31){ setStatus('Please keep the range to 31 days or fewer (records below cover longer spans).',true); return; }
 
@@ -555,7 +682,8 @@ async function fetchWeather(){
 
   lastWeatherData=data;
   lastContext={ lat, lon, start, end, effView };
-  setStatus(`Loaded ${b.time.length} ${effView} records · ${data.timezone}`);
+  if(data.timezone) locTimeZone=data.timezone;   // authoritative zone from the data (backstop, esp. for 📍)
+  setStatus(`Loaded ${b.time.length} ${effView} records · ${tzLabel(data)}`);
   renderResults();
 }
 
@@ -567,6 +695,7 @@ function renderResults(){
   document.getElementById('side-col').style.display='';
   // heat metrics toggle only relevant for hourly
   document.getElementById('heat-chk').style.display = c.effView==='hourly' ? 'inline-flex' : 'none';
+  document.getElementById('humidity-chk').style.display = c.effView==='hourly' ? 'inline-flex' : 'none';
 
   if(c.effView==='daily') renderDaily(d,c); else renderHourly(d,c);
   renderSummary(d,c);
@@ -584,19 +713,20 @@ function renderHourly(d,c){
   const h=d.hourly, L=UNIT_LABELS[units];
   const single=(c.start===c.end);
 
-  // chart
+  // chart — temperature on the left axis; optional humidity on a right axis
   document.getElementById('chart-title').textContent='Temperature';
-  const series=[{name:'Temp',color:'#58a6ff',values:h.temperature_2m||[]}];
-  if(h.apparent_temperature) series.push({name:'Feels',color:'#f78166',values:h.apparent_temperature});
-  setLegend(series);
+  const series=[{name:'Temp', color:'#58a6ff', values:h.temperature_2m||[], axis:'left', unit:L.temp}];
+  if(showHumidity && h.relative_humidity_2m) series.push({name:'Humidity', color:'#56d364', values:h.relative_humidity_2m, axis:'right', unit:'%'});
+  // humidity isn't shown in the legend — the green checkbox is its key — so ticking it doesn't widen the controls and shove the checkbox
+  setLegend(series.filter(s=>s.axis!=='right'));
   Chart.setData({
     xFull:h.time.map(fullHour),
     xShort:h.time.map(t=> single ? hmShort(t) : mdShort(t)),
-    series, yUnit:L.temp
+    series
   });
 
   // meta + table
-  document.getElementById('results-meta').innerHTML=`<strong>${h.time.length} hours</strong> · ${c.lat.toFixed(3)}, ${c.lon.toFixed(3)} · ${c.start}${single?'':' → '+c.end} · ${d.timezone}`;
+  document.getElementById('results-meta').innerHTML=`<strong>${h.time.length} hours</strong> · ${c.lat.toFixed(3)}, ${c.lon.toFixed(3)} · ${numDate(c.start)}${single?'':' → '+numDate(c.end)} · times in ${tzLabel(d)}`;
   const head=document.getElementById('results-head');
   let cols=`<th>Time</th><th>Temp (${L.temp})</th><th>Feels (${L.temp})</th><th>Humidity</th><th>Precip (${L.precip})</th><th>Rain chance</th><th>Wind (${L.wind})</th><th>Dir</th><th>Cloud</th><th>Vis (${L.vis})</th>`;
   if(heatMetrics) cols+=`<th>Heat idx (${L.temp})</th><th>Wet-bulb (${L.temp})</th><th>WBGT shade (${L.temp})</th>`;
@@ -644,19 +774,19 @@ function renderHourly(d,c){
 function renderDaily(d,c){
   const dd=d.daily, L=UNIT_LABELS[units];
   document.getElementById('chart-title').textContent='Daily high / low';
-  const series=[{name:'High',color:'#f78166',values:dd.temperature_2m_max||[]},
-                {name:'Low',color:'#58a6ff',values:dd.temperature_2m_min||[]}];
+  const series=[{name:'High',color:'#f78166',values:dd.temperature_2m_max||[], axis:'left', unit:L.temp},
+                {name:'Low',color:'#58a6ff',values:dd.temperature_2m_min||[], axis:'left', unit:L.temp}];
   setLegend(series);
-  Chart.setData({ xFull:dd.time.map(fullDay), xShort:dd.time.map(mdShort), series, yUnit:L.temp });
+  Chart.setData({ xFull:dd.time.map(fullDay), xShort:dd.time.map(mdShort), series });
 
-  document.getElementById('results-meta').innerHTML=`<strong>${dd.time.length} days</strong> · ${c.lat.toFixed(3)}, ${c.lon.toFixed(3)} · ${c.start} → ${c.end} · ${d.timezone}`;
+  document.getElementById('results-meta').innerHTML=`<strong>${dd.time.length} days</strong> · ${c.lat.toFixed(3)}, ${c.lon.toFixed(3)} · ${numDate(c.start)} → ${numDate(c.end)} · times in ${tzLabel(d)}`;
   document.getElementById('results-head').innerHTML=
-    `<tr><th>Date</th><th>High (${L.temp})</th><th>Low (${L.temp})</th>`+
-    `<th>Feels H/L (${L.temp})</th><th>Precip (${L.precip})</th><th>Rain hrs</th>`+
-    `<th>Wind max (${L.wind})</th><th>Dir</th><th>Sun ↑ / ↓</th><th>Conditions</th></tr>`;
+    `<tr><th>Date</th><th>High (${L.temp})</th><th>Low (${L.temp})</th><th>Mean (${L.temp})</th>`+
+    `<th>Feels max (${L.temp})</th><th>Feels min (${L.temp})</th><th>Precip (${L.precip})</th><th>Rain hrs</th>`+
+    `<th>Wind max (${L.wind})</th><th>Dir</th><th>Sunrise</th><th>Sunset</th><th>Conditions</th></tr>`;
   const tbody=document.getElementById('results-body'); tbody.innerHTML='';
   dd.time.forEach((t,i)=>{
-    const hi=dd.temperature_2m_max?.[i], lo=dd.temperature_2m_min?.[i],
+    const hi=dd.temperature_2m_max?.[i], lo=dd.temperature_2m_min?.[i], mean=dd.temperature_2m_mean?.[i],
       fmax=dd.apparent_temperature_max?.[i], fmin=dd.apparent_temperature_min?.[i],
       psum=dd.precipitation_sum?.[i], phrs=dd.precipitation_hours?.[i], wmax=dd.windspeed_10m_max?.[i],
       wdir=dd.winddirection_10m_dominant?.[i], wmo=dd.weathercode?.[i],
@@ -665,22 +795,25 @@ function renderDaily(d,c){
     tr.innerHTML=`<td class="time-col">${compactDay(t)}</td>`+
       `<td class="temp-col ${tempClass(hi)}">${fmt(hi)}°</td>`+
       `<td class="temp-col ${tempClass(lo)}">${fmt(lo)}°</td>`+
-      `<td class="temp-col">${fmt(fmax)}° / ${fmt(fmin)}°</td>`+
+      `<td>${fmt(mean)}°</td>`+
+      `<td class="temp-col">${fmt(fmax)}°</td>`+
+      `<td class="temp-col">${fmt(fmin)}°</td>`+
       `<td class="rain-col">${psum!=null&&psum>0?fmt(psum,1):'<span class="dim">—</span>'}</td>`+
       `<td>${phrs!=null?fmt(phrs,0):'—'}</td>`+
       `<td class="wind-col">${fmt(wmax)}</td>`+
       `<td style="color:var(--subtle)">${wdir!=null?windDir(wdir):'—'}</td>`+
-      `<td style="color:var(--subtle)">${sr?hmShort(sr):'—'} / ${ss?hmShort(ss):'—'}</td>`+
+      `<td>${sr?hmShort(sr):'—'}</td>`+
+      `<td>${ss?hmShort(ss):'—'}</td>`+
       `<td class="wmo-desc">${WMO[wmo] ?? (wmo ?? '—')}</td>`;
     tbody.appendChild(tr);
   });
   document.getElementById('legend-body').innerHTML=
-    `<p><strong>High / Low</strong> — the day's maximum and minimum air temperature, measured at 2 m above ground.</p>`+
-    `<p><strong>Feels (H/L)</strong> — the daily high and low of apparent temperature: Open-Meteo's estimate of how the air actually feels once wind, humidity, and solar radiation are folded in. It behaves like wind chill in the cold and like a humidity index in the heat, so a damp, sunny afternoon can read well above the air temperature and a windy winter morning well below it.</p>`+
+    `<p><strong>High / Low / Mean</strong> — the day's maximum, minimum, and mean air temperature, measured at 2 m above ground.</p>`+
+    `<p><strong>Feels max / min</strong> — the daily high and low of apparent temperature: Open-Meteo's estimate of how the air actually feels once wind, humidity, and solar radiation are folded in. It behaves like wind chill in the cold and like a humidity index in the heat, so a damp, sunny afternoon can read well above the air temperature and a windy winter morning well below it.</p>`+
     `<p><strong>Precip</strong> — total liquid-equivalent precipitation for the day (rain plus any melted snow or ice). <strong>Rain hrs</strong> is the number of hours with measurable precipitation, so the same total spread over fewer hours means heavier, more concentrated rain.</p>`+
-    `<p><strong>Wind max / Dir</strong> — the day's peak 10 m wind speed and its dominant direction over the day (the compass point the wind blew <em>from</em>).</p>`+
-    `<p><strong>Sun ↑ / ↓</strong> — sunrise and sunset in the location's local time.</p>`+
-    `<p><strong>Conditions</strong> — the day's representative weather (WMO code), summarizing the dominant sky and precipitation state. Per-hour heat index, wet-bulb, and WBGT are available in the Hourly view. (Daily mean temperature and the separate feels max/min are still included in the CSV export.)</p>`;
+    `<p><strong>Wind max / Dir</strong> — the day's peak 10 m wind speed and its dominant direction (the compass point the wind blew <em>from</em>).</p>`+
+    `<p><strong>Sunrise / Sunset</strong> — in the location's local time.</p>`+
+    `<p><strong>Conditions</strong> — the day's representative weather (WMO code), summarizing the dominant sky and precipitation state. Per-hour heat index, wet-bulb, and WBGT are in the Hourly view.</p>`;
   syncStickyOffset();
 }
 
@@ -694,11 +827,17 @@ function renderSummary(d,c){
     const dd=d.daily;
     const hi=argExtreme(dd.temperature_2m_max||[], (a,b)=>a>b);
     const lo=argExtreme(dd.temperature_2m_min||[], (a,b)=>a<b);
+    const maxes=(dd.temperature_2m_max||[]).filter(v=>v!=null);
+    const mins=(dd.temperature_2m_min||[]).filter(v=>v!=null);
+    const avgHi=maxes.length?maxes.reduce((s,v)=>s+v,0)/maxes.length:null;
+    const avgLo=mins.length?mins.reduce((s,v)=>s+v,0)/mins.length:null;
     const totalP=(dd.precipitation_sum||[]).reduce((s,v)=>s+(v||0),0);
     const wet=argExtreme(dd.precipitation_sum||[], (a,b)=>a>b);
     const rainyDays=(dd.precipitation_sum||[]).filter(v=>v!=null&&v>0).length;
     if(hi.i>=0) html+=statRow('Highest', `${fmt(hi.v)}${L.temp} · ${mdShort(dd.time[hi.i])}`, 'hot');
     if(lo.i>=0) html+=statRow('Lowest', `${fmt(lo.v)}${L.temp} · ${mdShort(dd.time[lo.i])}`, 'cold');
+    if(avgHi!=null) html+=statRow('Avg high', `${fmt(avgHi)}${L.temp}`, 'hot');
+    if(avgLo!=null) html+=statRow('Avg low', `${fmt(avgLo)}${L.temp}`, 'cold');
     html+=statRow('Total precip', `${fmt(totalP,1)} ${L.precip}`, 'rain');
     if(wet.i>=0 && wet.v>0) html+=statRow('Wettest day', `${fmt(wet.v,1)} ${L.precip} · ${mdShort(dd.time[wet.i])}`, 'rain');
     html+=statRow('Days with rain', `${rainyDays} / ${dd.time.length}`);
@@ -714,6 +853,18 @@ function renderSummary(d,c){
     const stamp=i=> single ? hmShort(h.time[i]) : `${mdShort(h.time[i])} ${hmShort(h.time[i])}`;
     if(hi.i>=0) html+=statRow('High', `${fmt(hi.v)}${L.temp} · ${stamp(hi.i)}`, 'hot');
     if(lo.i>=0) html+=statRow('Low', `${fmt(lo.v)}${L.temp} · ${stamp(lo.i)}`, 'cold');
+    if(!single){
+      // average of each day's max and min across the range
+      const byDay={};
+      h.time.forEach((t,i)=>{ const v=h.temperature_2m?.[i]; if(v==null) return; const day=t.slice(0,10); (byDay[day]=byDay[day]||[]).push(v); });
+      const ds=Object.values(byDay);
+      if(ds.length>1){
+        const dHi=ds.map(a=>Math.max(...a)), dLo=ds.map(a=>Math.min(...a));
+        const aHi=dHi.reduce((s,v)=>s+v,0)/dHi.length, aLo=dLo.reduce((s,v)=>s+v,0)/dLo.length;
+        html+=statRow('Avg high', `${fmt(aHi)}${L.temp}`, 'hot');
+        html+=statRow('Avg low', `${fmt(aLo)}${L.temp}`, 'cold');
+      }
+    }
     html+=statRow('Total precip', `${fmt(totalP,1)} ${L.precip}`, 'rain');
     if(wind.i>=0) html+=statRow('Peak wind', `${fmt(wind.v)} ${L.wind} ${h.winddirection_10m?.[wind.i]!=null?windDir(h.winddirection_10m[wind.i]):''}`);
     if(avgH!=null) html+=statRow('Avg humidity', `${fmt(avgH,0)}%`);
@@ -767,7 +918,7 @@ async function loadRecords(){
   body.innerHTML=`<div class="records-note">Loading ~85 years of daily data for ${monthDayLabel(dateStr)}…</div>`;
   const u=UNIT_PARAMS[units];
   const p=new URLSearchParams({ latitude:lat, longitude:lon, timezone:'auto',
-    start_date:'1940-01-01', end_date:todayStr(),
+    start_date:'1940-01-01', end_date:effToday(),
     daily:'temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max',
     temperature_unit:u.temperature_unit, windspeed_unit:u.windspeed_unit, precipitation_unit:u.precipitation_unit });
   let data;
@@ -858,51 +1009,66 @@ const Chart = {
     // integer backing store so fractional DPRs (1.25, 1.5, 2.25…) don't blur
     cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
     ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H);
-    let vals=[]; d.series.forEach(s=>s.values.forEach(v=>{ if(v!=null) vals.push(v); }));
-    if(!vals.length) return;
-    let mn=Math.min(...vals), mx=Math.max(...vals); if(mn===mx){ mn-=1; mx+=1; }
-    const step=niceStep(mx-mn,5);
-    const yMin=Math.floor(mn/step)*step, yMax=Math.ceil(mx/step)*step;
+
+    const leftS=d.series.filter(s=>s.axis!=='right');
+    const rightS=d.series.filter(s=>s.axis==='right');
+    const collect=arr=>{ let o=[]; arr.forEach(s=>s.values.forEach(v=>{ if(v!=null) o.push(v); })); return o; };
+    const lv=collect(leftS); if(!lv.length) return;
+    let lmn=Math.min(...lv), lmx=Math.max(...lv); if(lmn===lmx){ lmn-=1; lmx+=1; }
+    const lStep=niceStep(lmx-lmn,5);
+    const lMin=Math.floor(lmn/lStep)*lStep, lMax=Math.ceil(lmx/lStep)*lStep;
+
+    // right axis (humidity) is permanently fixed to 0–100%, not auto-scaled
+    let rMin=0, rMax=100, rStep=20, hasR=false;
+    if(rightS.length && collect(rightS).length) hasR=true;
 
     // type size tracks the document's root font (so it scales with zoom & user prefs)
     const rootPx=parseFloat(getComputedStyle(document.documentElement).fontSize)||16;
     const fs=Math.max(9, rootPx*0.7); this.fs=fs;
     ctx.font=`${fs}px 'IBM Plex Mono', monospace`;
 
-    // left gutter is measured from the actual widest label, not a guessed constant
-    let maxLabelW=0, guard=0;
-    for(let v=yMin; v<=yMax+1e-9 && guard<400; v+=step, guard++){
-      maxLabelW=Math.max(maxLabelW, ctx.measureText(`${Math.round(v)}${d.yUnit}`).width);
-    }
-    const padL=maxLabelW + fs*1.1, padR=fs*0.8, padT=fs*0.8, padB=fs*1.9;
+    const lUnit=leftS[0]?.unit||'', rUnit=rightS[0]?.unit||'';
+    // gutters measured from the actual widest labels, not guessed constants
+    let lw=0,g=0;
+    for(let v=lMin; v<=lMax+1e-9 && g<400; v+=lStep, g++) lw=Math.max(lw, ctx.measureText(`${Math.round(v)}${lUnit}`).width);
+    let rw=0;
+    if(hasR){ g=0; for(let v=rMin; v<=rMax+1e-9 && g<400; v+=rStep, g++) rw=Math.max(rw, ctx.measureText(`${Math.round(v)}${rUnit}`).width); }
+    const padL=lw + fs*1.1, padR=(hasR ? rw + fs*1.1 : fs*0.8), padT=fs*0.8, padB=fs*1.9;
     const plotL=padL, plotR=W-padR, plotT=padT, plotB=H-padB;
     const n=d.xFull.length;
     const xAt=i=> n>1 ? plotL+(i/(n-1))*(plotR-plotL) : (plotL+plotR)/2;
-    const yAt=v=> plotB-((v-yMin)/(yMax-yMin))*(plotB-plotT);
-    this.geom={plotL,plotR,plotT,plotB,n,xAt,yAt};
+    const yL=v=> plotB-((v-lMin)/(lMax-lMin))*(plotB-plotT);
+    const yR=v=> plotB-((v-rMin)/(rMax-rMin))*(plotB-plotT);
+    const yFor=(s,v)=> s.axis==='right' ? yR(v) : yL(v);
+    this.geom={plotL,plotR,plotT,plotB,n,xAt};
     const lineW=Math.max(1, fs/7), dotR=fs/3.2, dash=Math.max(2, fs/4);
 
-    // y gridlines + labels
-    ctx.textBaseline='middle'; ctx.textAlign='right'; guard=0;
-    for(let v=yMin; v<=yMax+1e-9 && guard<400; v+=step, guard++){
-      const y=yAt(v); ctx.strokeStyle='#21262d'; ctx.lineWidth=1;
+    // gridlines + left-axis labels
+    ctx.textBaseline='middle'; g=0;
+    for(let v=lMin; v<=lMax+1e-9 && g<400; v+=lStep, g++){
+      const y=yL(v); ctx.strokeStyle='#21262d'; ctx.lineWidth=1;
       ctx.beginPath(); ctx.moveTo(plotL,y); ctx.lineTo(plotR,y); ctx.stroke();
-      ctx.fillStyle='#8b949e'; ctx.fillText(`${Math.round(v)}${d.yUnit}`, plotL-fs*0.5, y);
+      ctx.fillStyle='#8b949e'; ctx.textAlign='right'; ctx.fillText(`${Math.round(v)}${lUnit}`, plotL-fs*0.5, y);
     }
+    // right-axis labels
+    if(hasR){ g=0; ctx.textAlign='left';
+      for(let v=rMin; v<=rMax+1e-9 && g<400; v+=rStep, g++){ const y=yR(v);
+        ctx.fillStyle='#8b949e'; ctx.fillText(`${Math.round(v)}${rUnit}`, plotR+fs*0.5, y); } }
+
     // x ticks — count adapts to measured label width so they never overlap
     let widestX=0; d.xShort.forEach(l=>{ widestX=Math.max(widestX, ctx.measureText(l).width); });
     const maxTicks=Math.max(2, Math.floor((plotR-plotL)/(widestX + fs*1.5)));
     const ticks=Math.min(n, maxTicks, 8); ctx.textAlign='center'; ctx.textBaseline='top';
     for(let t=0;t<ticks;t++){ const i= ticks>1?Math.round(t/(ticks-1)*(n-1)):0;
       ctx.fillStyle='#8b949e'; ctx.fillText(d.xShort[i], xAt(i), plotB+fs*0.55); }
-    // series lines
+    // series lines (each plotted against its own axis)
     d.series.forEach(s=>{ ctx.strokeStyle=s.color; ctx.lineWidth=lineW; ctx.lineJoin='round'; ctx.beginPath();
-      let first=true; s.values.forEach((v,i)=>{ if(v==null){ first=true; return; } const x=xAt(i),y=yAt(v); first?ctx.moveTo(x,y):ctx.lineTo(x,y); first=false; }); ctx.stroke(); });
+      let first=true; s.values.forEach((v,i)=>{ if(v==null){ first=true; return; } const x=xAt(i),y=yFor(s,v); first?ctx.moveTo(x,y):ctx.lineTo(x,y); first=false; }); ctx.stroke(); });
     // crosshair
     if(hoverIdx!=null && hoverIdx>=0 && hoverIdx<n){
       const x=xAt(hoverIdx); ctx.strokeStyle='rgba(139,148,158,.5)'; ctx.lineWidth=1; ctx.setLineDash([dash,dash]);
       ctx.beginPath(); ctx.moveTo(x,plotT); ctx.lineTo(x,plotB); ctx.stroke(); ctx.setLineDash([]);
-      d.series.forEach(s=>{ const v=s.values[hoverIdx]; if(v==null) return; const y=yAt(v);
+      d.series.forEach(s=>{ const v=s.values[hoverIdx]; if(v==null) return; const y=yFor(s,v);
         ctx.fillStyle=s.color; ctx.beginPath(); ctx.arc(x,y,dotR,0,Math.PI*2); ctx.fill(); });
     }
   },
@@ -917,8 +1083,8 @@ const Chart = {
   showTip(idx){
     const d=this.data; if(!d||!this.geom) return;
     let lines=`<div class="tip-x">${d.xFull[idx]}</div>`;
-    d.series.forEach(s=>{ const v=s.values[idx];
-      lines+=`<div class="tip-row"><span class="tip-dot" style="background:${s.color}"></span>${s.name}: <strong>${v==null?'—':v.toFixed(1)+d.yUnit}</strong></div>`; });
+    d.series.forEach(s=>{ const v=s.values[idx]; const u=s.unit||'';
+      lines+=`<div class="tip-row"><span class="tip-dot" style="background:${s.color}"></span>${s.name}: <strong>${v==null?'—':v.toFixed(1)+u}</strong></div>`; });
     this.tip.innerHTML=lines; this.tip.style.display='block';
     const x=this.geom.xAt(idx); const wrapW=this.wrap.clientWidth; const tipW=this.tip.offsetWidth;
     const off=(this.fs||12); let left=x+off; if(left+tipW>wrapW) left=x-tipW-off; if(left<0) left=0;
