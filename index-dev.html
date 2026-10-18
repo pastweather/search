@@ -197,6 +197,34 @@
     .btn-records:hover:not(:disabled) { background:var(--accent2); }
     .records-note { font-family:var(--mono); font-size:0.7rem; color:var(--muted); margin-top:0.6rem; line-height:1.4; }
 
+    /* Climatology */
+    .clim-sub { font-family:var(--mono); font-size:0.72rem; color:var(--subtle); margin-bottom:0.85rem; line-height:1.5; }
+    .clim-sub strong { color:var(--accent); font-weight:500; }
+    .clim-controls { display:flex; flex-wrap:wrap; gap:0.85rem 1.1rem; align-items:end; margin-bottom:0.9rem; }
+    .clim-controls label { margin-bottom:0.3rem; }
+    .clim-controls input[type="range"] { width:9rem; accent-color:var(--accent); vertical-align:middle; }
+    .bw-val { font-family:var(--mono); font-size:0.72rem; color:var(--text); margin-left:0.4rem; }
+    .btn-clim { background:var(--accent); color:#0d1117; padding:0.55rem 1.1rem; font-size:0.8rem; }
+    .btn-clim:hover:not(:disabled) { background:var(--accent2); }
+    .clim-wrap { position:relative; width:100%; overflow-x:auto; }
+    .clim-wrap svg { display:block; height:19rem; cursor:crosshair; }
+    @media (max-width:35em) { .clim-wrap svg { height:16rem; } }
+    .clim-legend { display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap; margin-top:0.7rem;
+      font-family:var(--mono); font-size:0.7rem; color:var(--subtle); }
+    .clim-ramp { width:12rem; height:0.65rem; border-radius:3px; border:1px solid var(--border); }
+    .clim-key { display:inline-flex; align-items:center; gap:0.35rem; margin-left:0.8rem; }
+    .clim-key i { display:inline-block; width:1rem; border-top:2px solid; }
+    .clim-out { display:grid; grid-template-columns:repeat(auto-fit, minmax(18rem, 1fr)); gap:0.9rem 1.6rem; margin-top:1rem; }
+    .clim-read .stat .v strong { color:var(--accent2); font-weight:500; }
+    .thr-row { display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; font-family:var(--mono); font-size:0.8rem; padding:0.32rem 0; }
+    .thr-row input { width:5.5rem; padding:0.3rem 0.5rem; font-size:0.8rem; }
+    .thr-text { font-family:var(--mono); font-size:0.8rem; color:var(--text); line-height:1.5; padding:0.2rem 0; }
+    .thr-text strong { color:var(--warm); font-weight:500; }
+    .clim-hint { font-family:var(--mono); font-size:0.68rem; color:var(--muted); margin-top:0.3rem; }
+    .clim-caveats { font-size:0.78rem; color:var(--subtle); line-height:1.5; }
+    .clim-caveats li { margin:0 0 0.4rem 1.1rem; }
+    .clim-caveats li.warn { color:#ffab70; }
+
     footer { margin-top:2.5rem; font-family:var(--mono); font-size:0.68rem; color:var(--muted); text-align:center; }
     footer a { color:var(--muted); }
   </style>
@@ -204,7 +232,7 @@
 <body>
 
 <header>
-  <h1>Weather <span>//</span> Archive <span class="ver">v0.3.0-rc.1</span></h1>
+  <h1>Weather <span>//</span> Archive <span class="ver">v0.3.0-rc.2</span></h1>
   <div class="unit-toggle" id="unit-toggle">
     <button data-units="metric" class="active">°C · km/h</button>
     <button data-units="imperial">°F · mph</button>
@@ -282,6 +310,57 @@
         </div>
       </div>
 
+      <div class="card clim-card" id="clim-card" style="display:none;">
+        <div class="chart-head">
+          <div class="chart-title" id="clim-title">Climatology</div>
+        </div>
+        <div class="clim-sub" id="clim-sub"></div>
+        <div id="clim-start">
+          <button class="btn-clim" id="btn-clim">Load climatology</button>
+          <div class="records-note" id="clim-note">One download of the full daily history (shared with All-time records); every control below then recomputes instantly.</div>
+        </div>
+        <div id="clim-body" style="display:none;">
+          <div class="clim-controls">
+            <div><label>Window</label>
+              <div class="seg" id="clim-window">
+                <button data-w="3">±3 d</button><button data-w="7">±7 d</button><button data-w="10" class="active">±10 d</button><button data-w="15">±15 d</button>
+              </div></div>
+            <div><label>Years</label>
+              <div class="seg" id="clim-years">
+                <button data-y="30" class="active">Last 30</button><button data-y="50">Last 50</button><button data-y="all">All since 1940</button>
+              </div></div>
+            <div><label>Layer</label>
+              <div class="seg" id="clim-layer">
+                <button data-l="max" class="active">Daily highs</button><button data-l="min">Daily lows</button>
+              </div></div>
+            <div><label for="clim-bw">Smoothing</label>
+              <input type="range" id="clim-bw" min="0.3" max="3" step="0.1" value="1" /><span class="bw-val" id="clim-bw-val"></span></div>
+          </div>
+          <div class="clim-wrap" id="clim-wrap">
+            <svg id="clim-svg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Climatology chart"></svg>
+            <div class="chart-tip" id="clim-tip"></div>
+          </div>
+          <div class="clim-legend">
+            <span>fewer days</span><span class="clim-ramp" id="clim-ramp"></span><span>more days at this temperature</span>
+            <span class="clim-key"><i style="border-color:#e6edf3"></i>median (all years)</span>
+            <span class="clim-key"><i style="border-color:#f78166;border-top-style:dashed"></i>threshold</span>
+          </div>
+          <div class="clim-out">
+            <div class="clim-read">
+              <div class="side-title">All selected years together</div>
+              <div id="clim-read"></div>
+              <div class="thr-row"><span class="k" style="color:var(--subtle)" id="thr-label">Threshold</span><input type="number" id="clim-thr" step="0.5" /><span id="thr-unit"></span></div>
+              <div class="thr-text" id="thr-text"></div>
+              <div class="clim-hint">Tip: click anywhere on the chart to set the threshold to that temperature.</div>
+            </div>
+            <div>
+              <div class="side-title">Read this with care</div>
+              <ul class="clim-caveats" id="clim-caveats"></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="card table-card" id="table-card" style="display:none;">
         <div class="table-head">
           <div class="results-meta" id="results-meta"></div>
@@ -321,7 +400,7 @@
 </div>
 
 <footer>
-  Data: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> · No API key · Archive back to 1940 · v0.3.0-rc.1
+  Data: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> · No API key · Archive back to 1940 · v0.3.0-rc.2
 </footer>
 
 <script>
@@ -354,6 +433,14 @@
 //                end-date now use the location's today, not the user's (the data was
 //                already location-local via timezone=auto); the displayed zone is now
 //                stated explicitly in the results header
+//   v0.3.0-rc.2  Climatology view: for the selected date, one gradient bar per year
+//                spanning that year's coldest→warmest daily high (or low) within ±N
+//                days, coloured by kernel-smoothed density on one global scale, plus a
+//                pooled all-years bar with median, typical range and a clickable
+//                threshold readout. The full daily history is now one shared, cached
+//                download (always metric, converted locally) used by both the records
+//                panel and the climatology, so window/years/layer/units/smoothing all
+//                recompute with no new API calls
 // ============================================================
 // ===== WMO codes =====
 const WMO = {0:'Clear sky',1:'Mainly clear',2:'Partly cloudy',3:'Overcast',45:'Fog',48:'Icy fog',
@@ -482,6 +569,7 @@ document.getElementById('unit-toggle').addEventListener('click', e=>{
   const b=e.target.closest('button'); if(!b) return;
   units=b.dataset.units;
   document.querySelectorAll('#unit-toggle button').forEach(x=>x.classList.toggle('active',x===b));
+  if(clim.model) renderClim();   // climatology converts locally, so it never waits on (or fails with) the refetch
   if(document.getElementById('lat-input').value){ fetchWeather().then(()=>{ if(recordsLoaded) loadRecords(); }); }
 });
 document.getElementById('mode-toggle').addEventListener('click', e=>{
@@ -567,7 +655,7 @@ function selectPlace(r){
   const sub=[r.admin1,r.country].filter(Boolean).join(', ');
   document.getElementById('loc-label').textContent=`📍 ${r.name}${sub?' · '+sub:''}`;
   geoResults.classList.remove('visible'); placeInput.value=r.name;
-  recordsLoaded=false; resetRecordsCard();
+  recordsLoaded=false; resetRecordsCard(); resetClim();
   applyLocationTime(r.timezone);   // anchor "today"/limits to the place's local zone before fetching
   fetchWeather();
 }
@@ -602,7 +690,7 @@ document.getElementById('btn-locate').addEventListener('click', ()=>{
       document.getElementById('lon-input').value=lo.toFixed(4);
       document.getElementById('loc-label').textContent=`📍 Your location · ${la.toFixed(3)}, ${lo.toFixed(3)}`;
       geoResults.classList.remove('visible'); btn.disabled=false;
-      recordsLoaded=false; resetRecordsCard();
+      recordsLoaded=false; resetRecordsCard(); resetClim();
       applyLocationTime(Intl.DateTimeFormat().resolvedOptions().timeZone);   // you're at the location, so your zone is its zone
       fetchWeather(); },
     err=>{ setStatus(`Location error: ${err.message}`,true); btn.disabled=false; },
@@ -701,6 +789,7 @@ function renderResults(){
   renderSummary(d,c);
   renderFacts(d,c);
   updateRecordsButton(c);
+  updateClim();
 }
 
 function setLegend(seriesNames){
@@ -916,16 +1005,17 @@ async function loadRecords(){
   const dateStr=refDate(c); const [,mm,dd]=dateStr.split('-'); const md=`${mm}-${dd}`;
   const body=document.getElementById('records-body');
   body.innerHTML=`<div class="records-note">Loading ~85 years of daily data for ${monthDayLabel(dateStr)}…</div>`;
-  const u=UNIT_PARAMS[units];
-  const p=new URLSearchParams({ latitude:lat, longitude:lon, timezone:'auto',
-    start_date:'1940-01-01', end_date:effToday(),
-    daily:'temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max',
-    temperature_unit:u.temperature_unit, windspeed_unit:u.windspeed_unit, precipitation_unit:u.precipitation_unit });
   let data;
-  try{ const r=await fetch(`https://archive-api.open-meteo.com/v1/archive?${p}`); if(!r.ok) throw new Error(`HTTP ${r.status}`); data=await r.json(); }
+  try{ data=await getHistory(lat,lon); }
   catch(e){ body.innerHTML=`<div class="records-note">Couldn't load records: ${e.message}</div><button class="btn-records" id="btn-records">Try again</button>`; bindRecordsButton(); return; }
 
-  const dq=data.daily; if(!dq||!dq.time){ body.innerHTML=`<div class="records-note">No archive data available here.</div>`; return; }
+  // the shared history is metric — convert to the display units here
+  const cvT=v=> v==null ? null : (units==='imperial' ? v*9/5+32 : v);
+  const cvP=v=> v==null ? null : (units==='imperial' ? v/25.4 : v);
+  const cvW=v=> v==null ? null : (units==='imperial' ? v/1.609344 : v);
+  const raw=data.daily;
+  const dq={ time:raw.time, temperature_2m_max:raw.temperature_2m_max.map(cvT), temperature_2m_min:raw.temperature_2m_min.map(cvT),
+    precipitation_sum:raw.precipitation_sum.map(cvP), windspeed_10m_max:raw.windspeed_10m_max.map(cvW) };
   const idx=[]; dq.time.forEach((t,i)=>{ if(t.slice(5)===md) idx.push(i); });
   if(!idx.length){ body.innerHTML=`<div class="records-note">No matching days found.</div>`; return; }
 
@@ -954,7 +1044,347 @@ async function loadRecords(){
   if(windy.y) html+=statRow('Windiest', `${fmt(windy.v)} ${L.wind} (${windy.y})`);
   body.innerHTML=html;
   recordsLoaded=true;
+  if(!clim.loaded && lastContext) updateClim();   // the history is cached now, so the climatology comes for free
 }
+
+// ===== Shared full daily history (records + climatology) =====
+// One download per location and local day, always in metric; callers convert for display,
+// so switching units, window, years or layer never triggers another API call.
+const histCache={ key:null, promise:null, ready:false };
+function histKey(lat,lon){ return `${lat.toFixed(4)},${lon.toFixed(4)},${effToday()}`; }
+function histReady(lat,lon){ return histCache.ready && histCache.key===histKey(lat,lon); }
+function getHistory(lat,lon){
+  const key=histKey(lat,lon);
+  if(histCache.key===key && histCache.promise) return histCache.promise;
+  const p=new URLSearchParams({ latitude:lat, longitude:lon, timezone:'auto',
+    start_date:'1940-01-01', end_date:effToday(),
+    daily:'temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max' });
+  const prom=fetch(`https://archive-api.open-meteo.com/v1/archive?${p}`)
+    .then(r=>{ if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+    .then(d=>{
+      if(!d.daily || !d.daily.time || !d.daily.time.length) throw new Error('no archive data available here');
+      d.index=new Map(d.daily.time.map((t,i)=>[t,i]));   // date → row, for the window lookups
+      if(histCache.promise===prom) histCache.ready=true;
+      return d;
+    });
+  prom.catch(()=>{ if(histCache.promise===prom){ histCache.key=null; histCache.promise=null; histCache.ready=false; } });
+  histCache.key=key; histCache.promise=prom; histCache.ready=false;
+  return prom;
+}
+
+// ===== Climatology =====
+const clim={ loaded:false, key:null, hist:null, model:null, geom:null,
+  win:10, years:'30', layer:'max', bw:1,           // bw = smoothing bandwidth in °C
+  thr:null, thrAuto:true, thrUnits:null };
+const DAY_MS=86400000;
+function isoUTC(ms){ return new Date(ms).toISOString().slice(0,10); }
+function isLeap(y){ return (y%4===0 && y%100!==0) || y%400===0; }
+function pctile(sorted,p){ if(!sorted.length) return null; const i=(sorted.length-1)*p, lo=Math.floor(i), hi=Math.ceil(i); return sorted[lo]+(sorted[hi]-sorted[lo])*(i-lo); }
+// one sequential hue; dark (≈ the card) for few days → bright for many
+function climRamp(t){ t=Math.max(0,Math.min(1,t)); return `hsl(208,${(55+35*t).toFixed(1)}%,${(13+67*Math.pow(t,0.9)).toFixed(1)}%)`; }
+function bwDisp(){ return units==='imperial' ? clim.bw*1.8 : clim.bw; }
+
+function resetClim(){ clim.loaded=false; clim.key=null; clim.model=null; clim.thrAuto=true; }
+
+function updateClim(){
+  const c=lastContext; if(!c) return;
+  document.getElementById('clim-card').style.display='';
+  const key=histKey(c.lat,c.lon);
+  if(clim.loaded && clim.key!==key) resetClim();          // coordinates changed under us — ask again before a big download
+  const layerWord = clim.layer==='max' ? 'highs' : 'lows';
+  if(clim.loaded || histReady(c.lat,c.lon)){ runClim(); return; }
+  document.getElementById('clim-start').style.display='';
+  document.getElementById('clim-body').style.display='none';
+  document.getElementById('btn-clim').textContent=`Load climatology for ${monthDayLabel(refDate(c))}`;
+  document.getElementById('clim-sub').innerHTML=`How daily ${layerWord} within ±${clim.win} days of <strong>${monthDayLabel(refDate(c))}</strong> varied in each past year, and how often any given temperature was reached.`;
+}
+
+async function runClim(){
+  const c=lastContext; if(!c) return;
+  const btn=document.getElementById('btn-clim'), note=document.getElementById('clim-note');
+  if(!histReady(c.lat,c.lon)){ btn.disabled=true; note.textContent='Loading ~85 years of daily data…'; }
+  let hist;
+  try{ hist=await getHistory(c.lat,c.lon); }
+  catch(e){ btn.disabled=false; btn.textContent='Try again'; note.textContent=`Couldn't load the history: ${e.message}`; return; }
+  btn.disabled=false;
+  if(lastContext!==c) return;                              // superseded while downloading
+  clim.loaded=true; clim.key=histKey(c.lat,c.lon); clim.hist=hist;
+  document.getElementById('clim-start').style.display='none';
+  document.getElementById('clim-body').style.display='';
+  renderClim();
+}
+
+function buildClimModel(hist){
+  const d=hist.daily, idx=hist.index;
+  const centre=refDate(lastContext); const [, cm, cd]=centre.split('-').map(Number);
+  const feb29 = cm===2 && cd===29;
+  const N=clim.win, today=effToday(), todayY=Number(today.slice(0,4));
+  const src = clim.layer==='max' ? d.temperature_2m_max : d.temperature_2m_min;
+  const conv = v=> units==='imperial' ? v*9/5+32 : v;
+
+  // each year's window: 2N+1 consecutive days around that year's copy of the centre date
+  // (real date arithmetic, so it wraps across New Year; Feb 29 falls back to Feb 28 in common years)
+  let years=[];
+  for(let Y=1940; Y<=todayY+1; Y++){
+    const c=Date.UTC(Y, cm-1, (feb29 && !isLeap(Y)) ? 28 : cd);
+    const vals=[], offs=[];
+    for(let k=-N; k<=N; k++){
+      const s=isoUTC(c+k*DAY_MS); if(s>today) break;       // the current year stops at the location's today
+      const i=idx.get(s); if(i==null) continue;
+      const v=src[i]; if(v==null) continue;                 // archive lag / gaps
+      vals.push(conv(v)); offs.push(k);
+    }
+    if(vals.length) years.push({ y:Y, vals, offs, start:isoUTC(c-N*DAY_MS), end:isoUTC(c+N*DAY_MS) });
+  }
+  const want = clim.years==='all' ? years.length : Math.min(years.length, Number(clim.years));
+  years=years.slice(years.length-want);
+  if(!years.length) return null;
+
+  const h=bwDisp(), norm=1/(h*Math.sqrt(2*Math.PI));
+  // Gaussian KDE, normalised per year (share of that year's days per degree) so partial years compare fairly
+  function kde(vals, lo, hi){
+    const span=hi-lo, n=Math.max(2, Math.min(220, Math.ceil(span/(h/8))+1));
+    const stops=[]; let peak=0;
+    for(let j=0;j<n;j++){
+      const t = span>0 ? hi - span*j/(n-1) : hi;            // top (warmest) → bottom (coldest)
+      let s=0; for(const v of vals){ const z=(t-v)/h; s+=Math.exp(-0.5*z*z); }
+      const dens=s*norm/vals.length; stops.push({ off: span>0 ? j/(n-1) : 0, d:dens }); if(dens>peak) peak=dens;
+    }
+    return { stops, peak };
+  }
+  const full=2*N+1;
+  years.forEach(o=>{
+    const s=[...o.vals].sort((a,b)=>a-b);
+    o.sorted=s; o.min=s[0]; o.max=s[s.length-1]; o.median=pctile(s,0.5); o.partial=o.vals.length<full;
+    Object.assign(o, kde(o.vals, o.min, o.max));
+  });
+  const allVals=[], allOffs=[];
+  years.forEach(o=>{ allVals.push(...o.vals); allOffs.push(...o.offs); });
+  const ps=[...allVals].sort((a,b)=>a-b);
+  const pooled={ y:'All', vals:allVals, sorted:ps, min:ps[0], max:ps[ps.length-1],
+    median:pctile(ps,0.5), p10:pctile(ps,0.1), p90:pctile(ps,0.9) };
+  Object.assign(pooled, kde(allVals, pooled.min, pooled.max));
+  const gmax=Math.max(pooled.peak, ...years.map(o=>o.peak));
+
+  // seasonal drift across the window: least-squares slope of value vs day offset, times the window length
+  let mx=0,my=0; allOffs.forEach((x,i)=>{ mx+=x; my+=allVals[i]; }); mx/=allOffs.length; my/=allOffs.length;
+  let sxy=0,sxx=0; allOffs.forEach((x,i)=>{ sxy+=(x-mx)*(allVals[i]-my); sxx+=(x-mx)*(x-mx); });
+  const drift = sxx>0 ? (sxy/sxx)*2*N : 0;
+
+  const coldest=years.reduce((a,o)=>o.min<a.min?o:a), warmest=years.reduce((a,o)=>o.max>a.max?o:a);
+  return { years, pooled, gmax, drift, centre, feb29, N, full, coldest, warmest,
+    wraps: years[0].start.slice(0,4)!==years[0].end.slice(0,4) };
+}
+
+function renderClim(){
+  if(!clim.hist || !lastContext) return;
+  const m=buildClimModel(clim.hist); clim.model=m;
+  const L=UNIT_LABELS[units], layerWord = clim.layer==='max' ? 'highs' : 'lows';
+  document.getElementById('clim-bw-val').textContent=`±${bwDisp().toFixed(1)}${L.temp}`;
+  document.getElementById('clim-title').textContent=`Climatology · daily ${layerWord}`;
+  if(!m){
+    document.getElementById('clim-sub').textContent='No archive data falls inside this window yet.';
+    document.getElementById('clim-svg').innerHTML=''; return;
+  }
+  if(units!==clim.thrUnits){ clim.thrAuto=true; clim.thrUnits=units; }
+  if(clim.thrAuto) clim.thr=Math.round(clim.layer==='max' ? m.pooled.p90 : m.pooled.p10);
+
+  const y0=m.years[0].y, y1=m.years[m.years.length-1].y;
+  const last=m.years[m.years.length-1];
+  let sub=`Daily ${layerWord} within ±${m.N} days of <strong>${monthDayLabel(m.centre)}</strong> `+
+    `(${mdShort(last.start)} → ${mdShort(last.end)}), <strong>${y0}–${y1}</strong> · ${m.years.length} years · ${m.pooled.vals.length} days.`;
+  if(m.wraps) sub+=` The window crosses New Year; each bar is labelled by the year of its centre date.`;
+  if(m.feb29) sub+=` Feb 29 is centred on Feb 28 in common years.`;
+  document.getElementById('clim-sub').innerHTML=sub;
+  drawClim(); renderClimReadouts();
+}
+
+let climMeasureCtx=null;
+function drawClim(){
+  const m=clim.model; if(!m) return;
+  const svg=document.getElementById('clim-svg'), wrap=document.getElementById('clim-wrap');
+  const L=UNIT_LABELS[units];
+  const rootPx=parseFloat(getComputedStyle(document.documentElement).fontSize)||16;
+  const fs=Math.max(9, rootPx*0.7);
+  const mctx=climMeasureCtx||(climMeasureCtx=document.createElement('canvas').getContext('2d'));
+  mctx.font=`${fs}px 'IBM Plex Mono', monospace`;
+  const H=svg.clientHeight || rootPx*19;
+
+  let lo=m.pooled.min, hi=m.pooled.max;
+  if(clim.thr!=null){ lo=Math.min(lo, clim.thr); hi=Math.max(hi, clim.thr); }
+  if(hi-lo<1){ lo-=0.5; hi+=0.5; }
+  const step=niceStep(hi-lo,5);
+  const yMin=Math.floor(lo/step)*step, yMax=Math.ceil(hi/step)*step;
+  let lw=0; for(let v=yMin; v<=yMax+1e-9; v+=step) lw=Math.max(lw, mctx.measureText(`${Math.round(v)}${L.temp}`).width);
+
+  const nB=m.years.length, GAP=0.9, POOL=2.4;            // slots: one per year, a gap, then the pooled bar
+  const padL=lw+fs*1.1, padR=fs*2.4, padT=fs*0.9, padB=fs*2.1;
+  const slots=nB+GAP+POOL;
+  // data drives width: each year gets at least ~0.55rem; beyond the card width the chart scrolls
+  const W=Math.max(wrap.clientWidth, padL+padR+slots*rootPx*0.55);
+  const plotL=padL, plotR=W-padR, plotT=padT, plotB=H-padB;
+  const slot=(plotR-plotL)/slots, barW=Math.min(slot*0.72, rootPx*3);
+  const yv=v=> plotB-(v-yMin)/(yMax-yMin)*(plotB-plotT);
+  const px=plotL+(nB+GAP)*slot+slot*0.2, pw=Math.min(slot*POOL*0.7, rootPx*4.5);
+  clim.geom={ plotL, plotR, plotT, plotB, slot, barW, nB, px, pw, yMin, yMax, W, H, fs };
+
+  const font=`font-family="IBM Plex Mono, monospace" font-size="${fs.toFixed(1)}"`;
+  let defs='', body='';
+  for(let v=yMin; v<=yMax+1e-9; v+=step){
+    const y=yv(v).toFixed(1);
+    body+=`<line x1="${plotL}" x2="${plotR}" y1="${y}" y2="${y}" stroke="#21262d" stroke-width="1"/>`;
+    body+=`<text x="${(plotL-fs*0.5).toFixed(1)}" y="${y}" ${font} fill="#8b949e" text-anchor="end" dominant-baseline="middle">${Math.round(v)}${L.temp}</text>`;
+  }
+  function bar(o, id, x, w, faded){
+    const top=yv(o.max), bot=yv(o.min);
+    const op=faded?0.5:1;
+    if(o.max-o.min<1e-9){                                   // a single value — draw a short solid band
+      return `<rect x="${x.toFixed(1)}" y="${(top-1.5).toFixed(1)}" width="${w.toFixed(1)}" height="3" fill="${climRamp(o.peak/m.gmax)}" opacity="${op}"/>`;
+    }
+    defs+=`<linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">`+
+      o.stops.map(s=>`<stop offset="${s.off.toFixed(4)}" stop-color="${climRamp(s.d/m.gmax)}"/>`).join('')+`</linearGradient>`;
+    const cap=`stroke="#8b949e" stroke-opacity="0.75" stroke-width="1"`;
+    return `<rect x="${x.toFixed(1)}" y="${top.toFixed(1)}" width="${w.toFixed(1)}" height="${(bot-top).toFixed(1)}" fill="url(#${id})" opacity="${op}"/>`+
+      `<line x1="${x.toFixed(1)}" x2="${(x+w).toFixed(1)}" y1="${top.toFixed(1)}" y2="${top.toFixed(1)}" ${cap}/>`+
+      `<line x1="${x.toFixed(1)}" x2="${(x+w).toFixed(1)}" y1="${bot.toFixed(1)}" y2="${bot.toFixed(1)}" ${cap}/>`;
+  }
+  m.years.forEach((o,i)=>{ body+=bar(o, `cg${i}`, plotL+i*slot+(slot-barW)/2, barW, o.partial); });
+
+  // year labels: pick the smallest round step whose labels don't collide
+  const yl=mctx.measureText('2000').width+fs*0.8;
+  const ystep=[1,2,5,10,20,50].find(s=>s*slot>=yl)||50;
+  m.years.forEach((o,i)=>{ if(o.y%ystep) return;
+    body+=`<text x="${(plotL+i*slot+slot/2).toFixed(1)}" y="${(plotB+fs*1.3).toFixed(1)}" ${font} fill="#8b949e" text-anchor="middle">${o.y}</text>`; });
+
+  // pooled bar + its median tick and typical-range bracket (no percentile labels)
+  const sepX=plotL+(nB+GAP/2)*slot;
+  body+=`<line x1="${sepX.toFixed(1)}" x2="${sepX.toFixed(1)}" y1="${plotT}" y2="${plotB}" stroke="#30363d" stroke-dasharray="3 3"/>`;
+  const P=m.pooled;
+  body+=bar(P, 'cgAll', px, pw, false);
+  const ym=yv(P.median).toFixed(1);
+  body+=`<line x1="${(px-fs*0.35).toFixed(1)}" x2="${(px+pw+fs*0.35).toFixed(1)}" y1="${ym}" y2="${ym}" stroke="#e6edf3" stroke-width="2"/>`;
+  const bx=px+pw+fs*0.8, b1=yv(P.p90), b2=yv(P.p10);
+  body+=`<path d="M${(bx-fs*0.3).toFixed(1)} ${b1.toFixed(1)} H${bx.toFixed(1)} V${b2.toFixed(1)} H${(bx-fs*0.3).toFixed(1)}" fill="none" stroke="#8b949e" stroke-width="1"/>`;
+  body+=`<text x="${(px+pw/2).toFixed(1)}" y="${(plotB+fs*1.3).toFixed(1)}" ${font} fill="#e6edf3" text-anchor="middle">All</text>`;
+
+  if(clim.thr!=null){
+    const yt=yv(clim.thr).toFixed(1);
+    body+=`<line x1="${plotL}" x2="${plotR}" y1="${yt}" y2="${yt}" stroke="#f78166" stroke-width="1.5" stroke-dasharray="6 4"/>`;
+  }
+  body+=`<g id="clim-hover"></g>`;
+  svg.setAttribute('width', W.toFixed(0));
+  svg.setAttribute('viewBox', `0 0 ${W.toFixed(0)} ${H.toFixed(0)}`);
+  svg.innerHTML=`<defs>${defs}</defs>${body}`;
+}
+
+// which bar (or the pooled bar) and temperature is under the pointer
+function climHit(ev){
+  const g=clim.geom, m=clim.model; if(!g||!m) return null;
+  const svg=document.getElementById('clim-svg'), r=svg.getBoundingClientRect();
+  const x=(ev.clientX-r.left)*(g.W/r.width), y=(ev.clientY-r.top)*(g.H/r.height);
+  if(y<g.plotT || y>g.plotB) return null;
+  const t=g.yMax-(y-g.plotT)/(g.plotB-g.plotT)*(g.yMax-g.yMin);
+  const i=Math.floor((x-g.plotL)/g.slot);
+  let o=null, bx=0, bw=0;
+  if(i>=0 && i<g.nB){ o=m.years[i]; bx=g.plotL+i*g.slot+(g.slot-g.barW)/2; bw=g.barW; }
+  else if(x>=g.px-g.slot*0.4 && x<=g.px+g.pw+g.slot*0.6){ o=m.pooled; bx=g.px; bw=g.pw; }
+  return { x, y, t, o, bx, bw };
+}
+function climHover(ev){
+  const hit=climHit(ev), tip=document.getElementById('clim-tip'), hov=document.getElementById('clim-hover');
+  if(!hit){ tip.style.display='none'; if(hov) hov.innerHTML=''; return; }
+  const g=clim.geom, m=clim.model, L=UNIT_LABELS[units];
+  const isMax=clim.layer==='max', op=isMax?'≥':'≤';
+  let h=`<line x1="${g.plotL}" x2="${g.plotR}" y1="${hit.y.toFixed(1)}" y2="${hit.y.toFixed(1)}" stroke="#8b949e" stroke-opacity="0.6" stroke-dasharray="2 3"/>`;
+  if(hit.o) h+=`<rect x="${(hit.bx-1.5).toFixed(1)}" y="${(g.plotT).toFixed(1)}" width="${(hit.bw+3).toFixed(1)}" height="${(g.plotB-g.plotT).toFixed(1)}" fill="#58a6ff" fill-opacity="0.07" stroke="#58a6ff" stroke-opacity="0.5"/>`;
+  hov.innerHTML=h;
+  if(!hit.o){ tip.style.display='none'; return; }
+  const o=hit.o, k=o.vals.filter(v=> isMax ? v>=hit.t : v<=hit.t).length;
+  const row=(a,b)=>`<div class="tip-row">${a}: <strong>${b}</strong></div>`;
+  let html = o===m.pooled
+    ? `<div class="tip-x">All ${m.years.length} years</div>`
+    : `<div class="tip-x">${o.y}${o.partial?' · partial':''}</div><div class="tip-row" style="color:var(--subtle)">${numDate(o.start)} → ${numDate(o.end)}</div>`;
+  html+=row('Range', `${fmt(o.min)} to ${fmt(o.max)}${L.temp}`)+row('Median', `${fmt(o.median)}${L.temp}`)+
+    row('Days', o===m.pooled ? `${o.vals.length}` : `${o.vals.length}${o.partial?` of ${m.full}`:''}`)+
+    row(`${op} ${fmt(hit.t)}${L.temp}`, `${k} day${k===1?'':'s'}`);
+  tip.innerHTML=html; tip.style.display='block';
+  const wrap=document.getElementById('clim-wrap');
+  let left=hit.x+g.fs; if(left+tip.offsetWidth > wrap.scrollLeft+wrap.clientWidth) left=hit.x-tip.offsetWidth-g.fs;
+  tip.style.left=Math.max(wrap.scrollLeft, left)+'px'; tip.style.top='0.4rem';
+}
+
+function renderClimReadouts(){
+  const m=clim.model; if(!m) return;
+  const L=UNIT_LABELS[units], P=m.pooled, isMax=clim.layer==='max';
+  let html='';
+  html+=statRow('Median', `<strong>${fmt(P.median)}${L.temp}</strong>`);
+  html+=statRow('Typical range', `${fmt(P.p10)} to ${fmt(P.p90)}${L.temp}`);
+  html+=`<div class="clim-hint" style="margin:-0.15rem 0 0.35rem">Typical range = the middle 80% of days.</div>`;
+  html+=statRow(isMax?'Warmest high':'Warmest low', `${fmt(m.warmest.max)}${L.temp} (${m.warmest.y})`, 'hot');
+  html+=statRow(isMax?'Coldest high':'Coldest low', `${fmt(m.coldest.min)}${L.temp} (${m.coldest.y})`, 'cold');
+  document.getElementById('clim-read').innerHTML=html;
+
+  document.getElementById('thr-label').textContent = isMax ? 'High reached ≥' : 'Low fell to ≤';
+  document.getElementById('thr-unit').textContent=L.temp;
+  const inp=document.getElementById('clim-thr');
+  if(document.activeElement!==inp) inp.value=clim.thr;
+  renderThreshold();
+
+  const cav=[];
+  cav.push('<li>This describes past conditions at this spot. It is not a forecast.</li>');
+  cav.push('<li>Days within one year are linked: one heatwave or cold spell fills several days. So the percentages are less certain than the day counts make them look.</li>');
+  const driftC=Math.abs(units==='imperial' ? m.drift/1.8 : m.drift);
+  const dTxt=`${fmt(Math.abs(m.drift))}${L.temp}`, dir = m.drift>0 ? 'rise' : 'fall';
+  if(driftC>=2) cav.push(`<li class="warn">The season moves noticeably inside this window: typical ${isMax?'highs':'lows'} ${dir} by about ${dTxt} from its first day to its last. That blurs each bar; a narrower window gives a sharper picture.</li>`);
+  else cav.push(`<li>Wide windows in spring and autumn blur the picture because the season shifts within them. Here the shift across the window is small (about ${dTxt}).</li>`);
+  const partial=m.years.filter(o=>o.partial);
+  if(partial.length) cav.push(`<li>Faded bars have missing days: ${partial.map(o=>`${o.y} (${o.vals.length} of ${m.full})`).join(', ')}. The current year stops at today's date at this location, and the archive runs a few days behind.</li>`);
+  cav.push('<li>Values come from a reanalysis grid cell (ERA5 via Open-Meteo), not a weather station, so local extremes can be smoothed out.</li>');
+  document.getElementById('clim-caveats').innerHTML=cav.join('');
+}
+
+function renderThreshold(){
+  const m=clim.model; if(!m || clim.thr==null || isNaN(clim.thr)){ document.getElementById('thr-text').textContent=''; return; }
+  const L=UNIT_LABELS[units], isMax=clim.layer==='max', T=clim.thr;
+  const hit=v=> isMax ? v>=T : v<=T;
+  const n=m.pooled.vals.filter(hit).length, M=m.pooled.vals.length;
+  const K=m.years.filter(o=>o.vals.some(hit)).length, Y=m.years.length;
+  const p=M ? Math.round(100*n/M) : 0;
+  const verb = isMax ? `The high reached ${T}${L.temp} or more` : `The low fell to ${T}${L.temp} or below`;
+  document.getElementById('thr-text').innerHTML=`${verb} on <strong>${n} of ${M} days (${p}%)</strong>, in <strong>${K} of ${Y} years</strong>.`;
+}
+
+// controls
+function climSeg(id, attr, apply){
+  document.getElementById(id).addEventListener('click', e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    document.querySelectorAll(`#${id} button`).forEach(x=>x.classList.toggle('active',x===b));
+    apply(b.dataset[attr]);
+    if(clim.loaded) renderClim(); else updateClim();
+  });
+}
+climSeg('clim-window','w', v=>{ clim.win=Number(v); });
+climSeg('clim-years','y', v=>{ clim.years=v; });
+climSeg('clim-layer','l', v=>{ clim.layer=v; clim.thrAuto=true; });
+document.getElementById('clim-bw').addEventListener('input', e=>{ clim.bw=Number(e.target.value); if(clim.loaded) renderClim(); });
+document.getElementById('btn-clim').addEventListener('click', runClim);
+document.getElementById('clim-thr').addEventListener('input', e=>{
+  const v=parseFloat(e.target.value); if(isNaN(v)) return;
+  clim.thr=v; clim.thrAuto=false; drawClim(); renderThreshold();
+});
+(function(){
+  const svg=document.getElementById('clim-svg');
+  svg.addEventListener('mousemove', climHover);
+  svg.addEventListener('mouseleave', ()=>{ document.getElementById('clim-tip').style.display='none'; const h=document.getElementById('clim-hover'); if(h) h.innerHTML=''; });
+  svg.addEventListener('click', e=>{
+    const hit=climHit(e); if(!hit) return;
+    clim.thr=Math.round(hit.t*2)/2; clim.thrAuto=false;
+    document.getElementById('clim-thr').value=clim.thr;
+    drawClim(); renderThreshold(); climHover(e);
+  });
+  const ramp=[]; for(let i=0;i<=10;i++) ramp.push(`${climRamp(i/10)} ${i*10}%`);
+  document.getElementById('clim-ramp').style.background=`linear-gradient(to right, ${ramp.join(',')})`;
+})();
 
 // ===== CSV =====
 document.getElementById('btn-csv').addEventListener('click', downloadCSV);
@@ -1095,7 +1525,7 @@ const Chart = {
 Chart.init();
 
 let resizeTimer;
-window.addEventListener('resize', ()=>{ clearTimeout(resizeTimer); resizeTimer=setTimeout(()=>{ if(lastWeatherData){ Chart.render(); syncStickyOffset(); } },150); });
+window.addEventListener('resize', ()=>{ clearTimeout(resizeTimer); resizeTimer=setTimeout(()=>{ if(lastWeatherData){ Chart.render(); syncStickyOffset(); if(clim.model) drawClim(); } },150); });
 </script>
 </body>
 </html>
